@@ -9,19 +9,19 @@ import (
 	"google.golang.org/grpc"
 )
 
-type masterServer struct {
+type MasterServer struct {
 	pp.UnimplementedPeerServiceServer
-	peers *pp.Peers
+	Peers *pp.Peers
 }
 
-func (s *masterServer) RegisterPeer(ctx context.Context, req *pp.RegisterPeerRequest) (*pp.RegisterPeerResponse, error) {
-	s.peers.AddPeer(req.Address)
+func (s *MasterServer) RegisterPeer(ctx context.Context, req *pp.RegisterPeerRequest) (*pp.RegisterPeerResponse, error) {
+	s.Peers.AddPeer(req.Address)
 	log.Printf("Peer is registred %v", req.Address)
 	return &pp.RegisterPeerResponse{}, nil
 }
 
-func (s *masterServer) ListPeers(ctx context.Context, req *pp.ListPeersRequest) (*pp.ListPeersResponse, error) {
-	peers := s.peers.GetPeers()
+func (s *MasterServer) ListPeers(ctx context.Context, req *pp.ListPeersRequest) (*pp.ListPeersResponse, error) {
+	peers := s.Peers.GetPeers()
 	addresses := make([]string, len(peers))
 	for i, peer := range peers {
 		addresses[i] = peer.Address
@@ -37,7 +37,7 @@ func main() {
 	}
 	grpcServer := grpc.NewServer()
 	peers := pp.NewPeers()
-	pp.RegisterPeerServiceServer(grpcServer, &masterServer{peers: peers})
+	pp.RegisterPeerServiceServer(grpcServer, &MasterServer{Peers: peers})
 	log.Printf("Peer Server is running on port: %v", lis.Addr())
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)

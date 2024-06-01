@@ -9,7 +9,6 @@ import (
 	pp "repMemCache/protoPeer/proto"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 type peerServer struct {
@@ -38,11 +37,22 @@ func (s *peerServer) SyncData(ctx context.Context, req *pb.DataRequest) (*pb.Dat
 }
 
 func (s *peerServer) replicateData(req *pb.DataRequest) {
-	creds := credentials.NewTLS(nil) //nil means insecure
-	for _, peer := range s.Peers.GetPeers() {
-		conn, err := grpc.NewClient(peer.Address, grpc.WithTransportCredentials(creds))
+	conn, err := grpc.Dial("localhost:50052", grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("Failed to connect to master server: %v", err)
+	}
+	defer conn.Close()
+
+	client := pp.NewPeerServiceClient(conn)
+	peers, err := client.ListPeers(context.Background(), &pp.ListPeersRequest{}) //STRING AARAY
+	if err != nil {
+		log.Fatalf("Failed to register to master: %v", err)
+	}
+	for _, peer := range peers.Addresses {
+		log.Println("Peer:", peer) // Sunucu adreslerini listele
+		conn, err := grpc.Dial(peer, grpc.WithInsecure())
 		if err != nil {
-			log.Printf("Failed to connect to peer %s: %v", peer.Address, err)
+			log.Printf("Failed to connect to peer %s: %v", peer, err)
 			continue
 		}
 		defer conn.Close()
@@ -50,22 +60,38 @@ func (s *peerServer) replicateData(req *pb.DataRequest) {
 		client := pb.NewCacheServiceClient(conn)
 		_, err = client.SyncData(context.Background(), req)
 		if err != nil {
-			log.Printf("Failed to replicate data to peer %s: %v", peer.Address, err)
+			log.Printf("Failed to replicate data to peer %s: %v", peer, err)
 		}
 	}
 }
 
+func registerToMaster(masterAddress, serverAddress string) {
+	conn, err := grpc.Dial(masterAddress, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("Failed to connect to master server: %v", err)
+	}
+	defer conn.Close()
+
+	client := pp.NewPeerServiceClient(conn)
+	_, err = client.RegisterPeer(context.Background(), &pp.RegisterPeerRequest{Address: serverAddress})
+	if err != nil {
+		log.Fatalf("Failed to register to master: %v", err)
+	}
+
+	log.Println("Registered to master successfully.")
+}
+
 func main() {
-	listener, err := net.Listen("tcp", ":50051")
+	listener, err := net.Listen("tcp", ":50059")
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
 	newCache := cache.NewCache()
 	peers := pp.NewPeers()
-	peers.AddPeer(listener.Addr().String())
+	//peers.AddPeer(listener.Addr().String())
 	pb.RegisterCacheServiceServer(grpcServer, &peerServer{Cache: newCache, Peers: peers})
-
+	registerToMaster("localhost:50052", listener.Addr().String()) //master addr.
 	log.Printf("Server is running on port: %v", listener.Addr())
 	if err := grpcServer.Serve(listener); err != nil {
 		log.Fatalf("Failed to serve: %v", err)

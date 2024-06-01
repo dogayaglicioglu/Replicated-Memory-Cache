@@ -6,12 +6,11 @@ import (
 	cache "repMemCache/cache/proto"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 func main() {
-	creds := credentials.NewTLS(nil) //nil means insecure
-	conn, err := grpc.NewClient("localhost:50051", grpc.WithTransportCredentials(creds))
+	conn, err := grpc.Dial("localhost:50059", grpc.WithInsecure())
+
 	if err != nil {
 		log.Fatalf("Error in connect to the client: %v", err)
 	}
@@ -19,12 +18,12 @@ func main() {
 
 	client := cache.NewCacheServiceClient(conn)
 
-	_, err = client.SetData(context.Background(), &cache.DataRequest{Key: "key1", Value: "value1"})
+	_, err = client.SetData(context.Background(), &cache.DataRequest{Key: "key35", Value: "value25"})
 	if err != nil {
 		log.Fatalf("Error calling SetData: %v", err)
 	}
 
-	res, err := client.GetData(context.Background(), &cache.KeyRequest{Key: "key1"})
+	res, err := client.GetData(context.Background(), &cache.KeyRequest{Key: "key35"})
 	if err != nil {
 		log.Fatalf("Error calling GetData: %v", err)
 	}
