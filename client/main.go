@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"log"
-	pb "repMemCache/cache/proto"
+	cache "repMemCache/cache/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -17,14 +17,14 @@ func main() {
 	}
 	defer conn.Close()
 
-	client := pb.NewCacheServiceClient(conn)
+	client := cache.NewCacheServiceClient(conn)
 
-	_, err = client.SetData(context.Background(), &pb.DataRequest{Key: "key1", Value: "value1"})
+	_, err = client.SetData(context.Background(), &cache.DataRequest{Key: "key1", Value: "value1"})
 	if err != nil {
 		log.Fatalf("Error calling SetData: %v", err)
 	}
 
-	res, err := client.GetData(context.Background(), &pb.KeyRequest{Key: "key1"})
+	res, err := client.GetData(context.Background(), &cache.KeyRequest{Key: "key1"})
 	if err != nil {
 		log.Fatalf("Error calling GetData: %v", err)
 	}

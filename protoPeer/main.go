@@ -5,48 +5,22 @@ import (
 	"log"
 	"net"
 	pp "repMemCache/protoPeer/proto"
-	"sync"
 
 	"google.golang.org/grpc"
 )
 
-type Peer struct {
-	Address string
-}
-
-type Peers struct {
-	peerList []Peer
-	mu       sync.RWMutex
-}
-
-func NewPeers() *Peers {
-	return &Peers{}
-}
-
-func (p *Peers) AddPeer(address string) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.peerList = append(p.peerList, Peer{Address: address})
-}
-
-func (p *Peers) GetPeers() []Peer {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.peerList
-}
-
-type server struct {
+type masterServer struct {
 	pp.UnimplementedPeerServiceServer
-	peers *Peers
+	peers *pp.Peers
 }
 
-func (s *server) RegisterPeer(ctx context.Context, req *pp.RegisterPeerRequest) (*pp.RegisterPeerResponse, error) {
+func (s *masterServer) RegisterPeer(ctx context.Context, req *pp.RegisterPeerRequest) (*pp.RegisterPeerResponse, error) {
 	s.peers.AddPeer(req.Address)
 	log.Printf("Peer is registred %v", req.Address)
 	return &pp.RegisterPeerResponse{}, nil
 }
 
-func (s *server) ListPeers(ctx context.Context, req *pp.ListPeersRequest) (*pp.ListPeersResponse, error) {
+func (s *masterServer) ListPeers(ctx context.Context, req *pp.ListPeersRequest) (*pp.ListPeersResponse, error) {
 	peers := s.peers.GetPeers()
 	addresses := make([]string, len(peers))
 	for i, peer := range peers {
@@ -62,8 +36,8 @@ func main() {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
-	peers := NewPeers()
-	pp.RegisterPeerServiceServer(grpcServer, &server{peers: peers})
+	peers := pp.NewPeers()
+	pp.RegisterPeerServiceServer(grpcServer, &masterServer{peers: peers})
 	log.Printf("Peer Server is running on port: %v", lis.Addr())
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)

@@ -4,26 +4,26 @@ import (
 	"context"
 	"log"
 	"net"
-	pb "repMemCache/cache/proto"
-
 	cache "repMemCache/cache"
+	pb "repMemCache/cache/proto"
+	pp "repMemCache/protoPeer/proto"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-type server struct {
+type peerServer struct {
 	pb.UnimplementedCacheServiceServer
 	Cache *cache.Cache
-	Peers *cache.Peers
+	Peers *pp.Peers
 }
 
-func (s *server) SetData(ctx context.Context, req *pb.DataRequest) (*pb.DataResponse, error) {
+func (s *peerServer) SetData(ctx context.Context, req *pb.DataRequest) (*pb.DataResponse, error) {
 	s.Cache.Set(req.Key, req.Value)
 	go s.replicateData(&pb.DataRequest{Key: req.Key, Value: req.Value})
 	return &pb.DataResponse{}, nil
 }
-func (s *server) GetData(ctx context.Context, req *pb.KeyRequest) (*pb.DataResponse, error) {
+func (s *peerServer) GetData(ctx context.Context, req *pb.KeyRequest) (*pb.DataResponse, error) {
 	value, exists := s.Cache.Get(req.Key)
 	if !exists {
 		return &pb.DataResponse{}, nil
@@ -32,12 +32,12 @@ func (s *server) GetData(ctx context.Context, req *pb.KeyRequest) (*pb.DataRespo
 
 }
 
-func (s *server) SyncData(ctx context.Context, req *pb.DataRequest) (*pb.DataResponse, error) {
+func (s *peerServer) SyncData(ctx context.Context, req *pb.DataRequest) (*pb.DataResponse, error) {
 	s.Cache.Set(req.Key, req.Value)
 	return &pb.DataResponse{}, nil
 }
 
-func (s *server) replicateData(req *pb.DataRequest) {
+func (s *peerServer) replicateData(req *pb.DataRequest) {
 	creds := credentials.NewTLS(nil) //nil means insecure
 	for _, peer := range s.Peers.GetPeers() {
 		conn, err := grpc.NewClient(peer.Address, grpc.WithTransportCredentials(creds))
@@ -62,9 +62,9 @@ func main() {
 	}
 	grpcServer := grpc.NewServer()
 	newCache := cache.NewCache()
-	peers := cache.NewPeers()
+	peers := pp.NewPeers()
 	peers.AddPeer(listener.Addr().String())
-	pb.RegisterCacheServiceServer(grpcServer, &server{Cache: newCache, Peers: peers})
+	pb.RegisterCacheServiceServer(grpcServer, &peerServer{Cache: newCache, Peers: peers})
 
 	log.Printf("Server is running on port: %v", listener.Addr())
 	if err := grpcServer.Serve(listener); err != nil {
