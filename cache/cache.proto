@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "/proto";
+
+service CacheService {
+  rpc SetData (DataRequest) returns (DataResponse);
+  rpc GetData (KeyRequest) returns (DataResponse);
+  rpc SyncData (DataRequest) returns (DataResponse);
+}
+
+message DataRequest {
+  string key = 1;
+  string value = 2;
+}
+
+message KeyRequest {
+  string key = 1;
+}
+
+message DataResponse {
+  string value = 1;
+}
+
