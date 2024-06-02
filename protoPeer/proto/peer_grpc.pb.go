@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion8
 const (
 	PeerService_RegisterPeer_FullMethodName = "/proto.PeerService/RegisterPeer"
 	PeerService_ListPeers_FullMethodName    = "/proto.PeerService/ListPeers"
+	PeerService_NotifyPeers_FullMethodName  = "/proto.PeerService/NotifyPeers"
 )
 
 // PeerServiceClient is the client API for PeerService service.
@@ -29,6 +30,7 @@ const (
 type PeerServiceClient interface {
 	RegisterPeer(ctx context.Context, in *RegisterPeerRequest, opts ...grpc.CallOption) (*RegisterPeerResponse, error)
 	ListPeers(ctx context.Context, in *ListPeersRequest, opts ...grpc.CallOption) (*ListPeersResponse, error)
+	NotifyPeers(ctx context.Context, in *NotifyPeerRequest, opts ...grpc.CallOption) (*NotifyPeerResponse, error)
 }
 
 type peerServiceClient struct {
@@ -59,12 +61,23 @@ func (c *peerServiceClient) ListPeers(ctx context.Context, in *ListPeersRequest,
 	return out, nil
 }
 
+func (c *peerServiceClient) NotifyPeers(ctx context.Context, in *NotifyPeerRequest, opts ...grpc.CallOption) (*NotifyPeerResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(NotifyPeerResponse)
+	err := c.cc.Invoke(ctx, PeerService_NotifyPeers_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PeerServiceServer is the server API for PeerService service.
 // All implementations must embed UnimplementedPeerServiceServer
 // for forward compatibility
 type PeerServiceServer interface {
 	RegisterPeer(context.Context, *RegisterPeerRequest) (*RegisterPeerResponse, error)
 	ListPeers(context.Context, *ListPeersRequest) (*ListPeersResponse, error)
+	NotifyPeers(context.Context, *NotifyPeerRequest) (*NotifyPeerResponse, error)
 	mustEmbedUnimplementedPeerServiceServer()
 }
 
@@ -77,6 +90,9 @@ func (UnimplementedPeerServiceServer) RegisterPeer(context.Context, *RegisterPee
 }
 func (UnimplementedPeerServiceServer) ListPeers(context.Context, *ListPeersRequest) (*ListPeersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListPeers not implemented")
+}
+func (UnimplementedPeerServiceServer) NotifyPeers(context.Context, *NotifyPeerRequest) (*NotifyPeerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method NotifyPeers not implemented")
 }
 func (UnimplementedPeerServiceServer) mustEmbedUnimplementedPeerServiceServer() {}
 
@@ -127,6 +143,24 @@ func _PeerService_ListPeers_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PeerService_NotifyPeers_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NotifyPeerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PeerServiceServer).NotifyPeers(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PeerService_NotifyPeers_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PeerServiceServer).NotifyPeers(ctx, req.(*NotifyPeerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PeerService_ServiceDesc is the grpc.ServiceDesc for PeerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -141,6 +175,10 @@ var PeerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListPeers",
 			Handler:    _PeerService_ListPeers_Handler,
+		},
+		{
+			MethodName: "NotifyPeers",
+			Handler:    _PeerService_NotifyPeers_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

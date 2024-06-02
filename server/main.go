@@ -5,64 +5,39 @@ import (
 	"log"
 	"net"
 	cache "repMemCache/cache"
-	pb "repMemCache/cache/proto"
+	cacheProto "repMemCache/cache/proto"
 	pp "repMemCache/protoPeer/proto"
 
 	"google.golang.org/grpc"
 )
 
 type peerServer struct {
-	pb.UnimplementedCacheServiceServer
+	cacheProto.UnimplementedCacheServiceServer
 	Cache *cache.Cache
-	Peers *pp.Peers
+	pp.UnimplementedPeerServiceServer
 }
 
-func (s *peerServer) SetData(ctx context.Context, req *pb.DataRequest) (*pb.DataResponse, error) {
+func (s *peerServer) SetData(ctx context.Context, req *cacheProto.DataRequest) (*cacheProto.DataResponse, error) {
 	s.Cache.Set(req.Key, req.Value)
-	go s.replicateData(&pb.DataRequest{Key: req.Key, Value: req.Value})
-	return &pb.DataResponse{}, nil
+	return &cacheProto.DataResponse{}, nil
 }
-func (s *peerServer) GetData(ctx context.Context, req *pb.KeyRequest) (*pb.DataResponse, error) {
+func (s *peerServer) GetData(ctx context.Context, req *cacheProto.KeyRequest) (*cacheProto.DataResponse, error) {
 	value, exists := s.Cache.Get(req.Key)
 	if !exists {
-		return &pb.DataResponse{}, nil
+		return &cacheProto.DataResponse{}, nil
 	}
-	return &pb.DataResponse{Value: value}, nil
+	return &cacheProto.DataResponse{Value: value}, nil
 
 }
 
-func (s *peerServer) SyncData(ctx context.Context, req *pb.DataRequest) (*pb.DataResponse, error) {
+func (s *peerServer) SyncData(ctx context.Context, req *cacheProto.DataRequest) (*cacheProto.DataResponse, error) {
 	s.Cache.Set(req.Key, req.Value)
-	return &pb.DataResponse{}, nil
+	return &cacheProto.DataResponse{}, nil
 }
 
-func (s *peerServer) replicateData(req *pb.DataRequest) {
-	conn, err := grpc.Dial("localhost:50052", grpc.WithInsecure())
-	if err != nil {
-		log.Fatalf("Failed to connect to master server: %v", err)
-	}
-	defer conn.Close()
-
-	client := pp.NewPeerServiceClient(conn)
-	peers, err := client.ListPeers(context.Background(), &pp.ListPeersRequest{}) //STRING AARAY
-	if err != nil {
-		log.Fatalf("Failed to register to master: %v", err)
-	}
-	for _, peer := range peers.Addresses {
-		log.Println("Peer:", peer) // Sunucu adreslerini listele
-		conn, err := grpc.Dial(peer, grpc.WithInsecure())
-		if err != nil {
-			log.Printf("Failed to connect to peer %s: %v", peer, err)
-			continue
-		}
-		defer conn.Close()
-
-		client := pb.NewCacheServiceClient(conn)
-		_, err = client.SyncData(context.Background(), req)
-		if err != nil {
-			log.Printf("Failed to replicate data to peer %s: %v", peer, err)
-		}
-	}
+func (s *peerServer) NotifyPeers(ctx context.Context, req *pp.NotifyPeerRequest) (*pp.NotifyPeerResponse, error) {
+	log.Printf("Notify from master: %s", req.Message)
+	return &pp.NotifyPeerResponse{Status: "Received"}, nil
 }
 
 func registerToMaster(masterAddress, serverAddress string) {
@@ -82,15 +57,14 @@ func registerToMaster(masterAddress, serverAddress string) {
 }
 
 func main() {
-	listener, err := net.Listen("tcp", ":50059")
+	listener, err := net.Listen("tcp", ":50057")
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 	grpcServer := grpc.NewServer()
 	newCache := cache.NewCache()
-	peers := pp.NewPeers()
-	//peers.AddPeer(listener.Addr().String())
-	pb.RegisterCacheServiceServer(grpcServer, &peerServer{Cache: newCache, Peers: peers})
+	cacheProto.RegisterCacheServiceServer(grpcServer, &peerServer{Cache: newCache})
+	pp.RegisterPeerServiceServer(grpcServer, &peerServer{Cache: newCache})
 	registerToMaster("localhost:50052", listener.Addr().String()) //master addr.
 	log.Printf("Server is running on port: %v", listener.Addr())
 	if err := grpcServer.Serve(listener); err != nil {
