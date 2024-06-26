@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package proto;
+
+option go_package = "/proto";
+
+service PeerService {
+  rpc RegisterPeer (RegisterPeerRequest) returns (RegisterPeerResponse);
+  rpc ListPeers (ListPeersRequest) returns (ListPeersResponse);
+  rpc NotifyPeers (NotifyPeerRequest) returns (NotifyPeerResponse);
+}
+
+message RegisterPeerRequest {
+  string address = 1;
+}
+
+message RegisterPeerResponse {
+  string message = 1;
+}
+
+message ListPeersRequest {}
+
+message ListPeersResponse {
+  repeated string addresses = 1;
+}
+
+message NotifyPeerRequest {
+  string message = 1;
+}
+
+message NotifyPeerResponse {
+  string status = 1;
+}
