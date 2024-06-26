@@ -6,7 +6,7 @@ import (
 	"net"
 	cache "repMemCache/cache"
 	cacheProto "repMemCache/cache/proto"
-	pp "repMemCache/protoPeer/proto"
+	pp "repMemCache/master/proto"
 
 	"google.golang.org/grpc"
 )
@@ -57,7 +57,7 @@ func registerToMaster(masterAddress, serverAddress string) {
 }
 
 func main() {
-	listener, err := net.Listen("tcp", ":50057")
+	listener, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
